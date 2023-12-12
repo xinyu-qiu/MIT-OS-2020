@@ -19,11 +19,12 @@ fmtname(char *path)
   if (strlen(p) >= DIRSIZ)
     return p;
   memmove(buf, p, strlen(p));
-  memset(buf + strlen(p), ' ', DIRSIZ - strlen(p));
+  // memset(buf + strlen(p), ' ', DIRSIZ - strlen(p));
+  buf[strlen(p)] = 0;
   return buf;
 }
 
-void ls(char *path)
+void find(char *path, char *filename)
 {
   char buf[512], *p;
   int fd;
@@ -32,28 +33,30 @@ void ls(char *path)
 
   if ((fd = open(path, O_RDONLY)) < 0)
   {
-    fprintf(2, "ls: cannot open %s\n", path);
+    fprintf(2, "find: cannot open %s\n", path);
     return;
   }
 
   if (fstat(fd, &st) < 0)
   {
-    fprintf(2, "ls: cannot stat %s\n", path);
+    fprintf(2, "find: cannot stat %s\n", path);
     close(fd);
     return;
   }
 
   switch (st.type)
   {
-  case T_DEVICE:
   case T_FILE:
-    printf("%s %d %d %l\n", fmtname(path), st.type, st.ino, st.size);
-    break;
-
-  case T_DIR:
-    if (strlen(path) + 1 + DIRSIZ + 1 > sizeof buf)
+    // fprintf(1, "path: %s, file: %s, filename: %s\n", path, fmtname(path), filename);
+    if (strcmp(fmtname(path), filename) == 0)
     {
-      printf("ls: path too long\n");
+      printf("%s\n", path);
+    }
+    break;
+  case T_DIR:
+    if (strlen(path) + 1 + DIRSIZ + 1 > sizeof(buf))
+    {
+      printf("find: path too long\n");
       break;
     }
     strcpy(buf, path);
@@ -62,15 +65,16 @@ void ls(char *path)
     while (read(fd, &de, sizeof(de)) == sizeof(de))
     {
       if (de.inum == 0)
-        continue;
-      memmove(p, de.name, DIRSIZ);
-      p[DIRSIZ] = 0;
-      if (stat(buf, &st) < 0)
       {
-        printf("ls: cannot stat %s\n", buf);
         continue;
       }
-      printf("%s %d %d %d\n", fmtname(buf), st.type, st.ino, st.size);
+      memmove(p, de.name, DIRSIZ);
+      p[DIRSIZ] = 0;
+      if (!strcmp(de.name, ".") || !strcmp(de.name, ".."))
+      {
+        continue;
+      }
+      find(buf, filename);
     }
     break;
   }
@@ -79,14 +83,11 @@ void ls(char *path)
 
 int main(int argc, char *argv[])
 {
-  int i;
-
-  if (argc < 2)
+  if (argc != 3)
   {
-    ls(".");
-    exit(0);
+    fprintf(2, "usage: find <path> <filename>\n");
+    exit(1);
   }
-  for (i = 1; i < argc; i++)
-    ls(argv[i]);
+  find(argv[1], argv[2]);
   exit(0);
 }
