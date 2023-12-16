@@ -195,6 +195,7 @@ UPROGS=\
 	$U/_pipe2\
 	$U/_primes\
 	$U/_find\
+	$U/_xargs\
 
 
 
